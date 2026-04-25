@@ -33,7 +33,7 @@ export default function VerifyPage() {
     }
 
     try {
-      // Prepare sale data
+      // Prepare sale data for Notion
       const saleData = {
         transactionTitle: `${currentResult.senderName || 'Unknown'} - ${currentResult.transactionReference || 'No Ref'}`,
         reference: currentResult.transactionReference || currentResult.transferReference || '',
@@ -50,8 +50,8 @@ export default function VerifyPage() {
         notes: currentResult.narrative || currentResult.aiAnalysis?.summary || '',
       }
 
-      // Call API to prepare Notion data
-      const response = await fetch('/api/register-sale', {
+      // Call the Notion API endpoint directly
+      const response = await fetch('/api/notion-create-sale', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(saleData),
@@ -59,30 +59,13 @@ export default function VerifyPage() {
 
       const result = await response.json()
 
-      if (!result.success) {
-        return { success: false, error: result.error }
-      }
-
-      // The actual Notion page creation happens via MCP on the server
-      // For now, we'll call a separate endpoint that uses the Notion MCP
-      const notionResponse = await fetch('/api/notion-create-sale', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dataSourceId: result.dataSourceId,
-          properties: result.properties,
-        }),
-      })
-
-      const notionResult = await notionResponse.json()
-
-      if (notionResult.success) {
+      if (result.success) {
         return { 
           success: true, 
-          pageUrl: notionResult.pageUrl || 'https://notion.so'
+          pageUrl: result.pageUrl || 'https://notion.so'
         }
       } else {
-        return { success: false, error: notionResult.error || 'Failed to create Notion page' }
+        return { success: false, error: result.error || 'Failed to create Notion page' }
       }
     } catch (error) {
       console.error('Error registering to Notion:', error)
