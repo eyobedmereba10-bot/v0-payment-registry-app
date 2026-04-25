@@ -23,14 +23,39 @@ interface AnalysisResult {
 }
 
 function parseAnalysis(text: string, verificationResult: Record<string, unknown>): AnalysisResult {
-  // Build transaction details from verification result
+  // Build transaction details from verification result - handle various data scenarios
+  const senderName = verificationResult?.senderName as string
+  const senderAccount = verificationResult?.senderAccountNumber as string
+  const receiverName = verificationResult?.receiverName as string
+  const receiverAccount = verificationResult?.receiverAccountNumber as string
+  const amount = verificationResult?.transactionAmount as number
+  const total = verificationResult?.total as number
+  const narrative = verificationResult?.narrative as string
+  const channel = verificationResult?.transactionChannel as string
+  
   const transactionDetails = {
-    verifiedSender: verificationResult?.senderName ? `${verificationResult.senderName}${verificationResult.senderAccountNumber ? ` (${verificationResult.senderAccountNumber})` : ''}` : 'Not available',
-    verifiedReceiver: verificationResult?.receiverName ? `${verificationResult.receiverName}${verificationResult.receiverAccountNumber ? ` (${verificationResult.receiverAccountNumber})` : ''}` : 'Not available',
-    verifiedAmount: verificationResult?.transactionAmount ? `${verificationResult.transactionAmount} ETB` : 'Not available',
-    verifiedDate: verificationResult?.transactionDate as string || 'Not available',
-    verifiedReference: (verificationResult?.transactionReference || verificationResult?.transferReference) as string || 'Not available',
-    verificationStatus: verificationResult?.success ? 'Verified in bank system' : 'NOT FOUND in bank system',
+    verifiedSender: senderName 
+      ? `${senderName}${senderAccount ? ` (${senderAccount})` : ''}`
+      : senderAccount 
+        ? `Account: ${senderAccount}` 
+        : 'Not provided by bank',
+    verifiedReceiver: receiverName 
+      ? `${receiverName}${receiverAccount ? ` (${receiverAccount})` : ''}`
+      : receiverAccount 
+        ? `Account: ${receiverAccount}`
+        : narrative 
+          ? `Purpose: ${narrative}` 
+          : 'Not provided by bank',
+    verifiedAmount: amount 
+      ? `${amount.toLocaleString()} ETB` 
+      : total 
+        ? `${total.toLocaleString()} ETB (total)` 
+        : 'Not provided',
+    verifiedDate: (verificationResult?.transactionDate as string) || 'Not provided',
+    verifiedReference: (verificationResult?.transactionReference as string) || (verificationResult?.transferReference as string) || 'Not provided',
+    verificationStatus: verificationResult?.success 
+      ? `VERIFIED via ${channel || 'Bank API'}` 
+      : 'NOT FOUND - Potentially fraudulent',
   }
 
   try {

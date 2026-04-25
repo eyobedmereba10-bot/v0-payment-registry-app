@@ -138,17 +138,19 @@ export function VerificationResult({ data }: VerificationResultProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">From (Sender)</p>
-                <p className="font-semibold text-lg">{data.senderName || 'Not Available'}</p>
-                {data.senderAccountNumber && (
+                <p className="font-semibold text-lg">{data.senderName || (data.success ? 'See Details Below' : 'Not Found')}</p>
+                {data.senderAccountNumber ? (
                   <p className="text-sm font-mono text-muted-foreground">{data.senderAccountNumber}</p>
-                )}
+                ) : data.success ? (
+                  <p className="text-xs text-muted-foreground">Account hidden</p>
+                ) : null}
               </div>
             </div>
 
             {/* Arrow with Amount */}
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center gap-2 px-4 py-2 bg-primary rounded-full text-primary-foreground">
-                <span className="font-bold text-lg">{formatCurrency(data.transactionAmount)}</span>
+                <span className="font-bold text-lg">{data.transactionAmount ? formatCurrency(data.transactionAmount) : (data.total ? formatCurrency(data.total) : 'Amount N/A')}</span>
               </div>
               <ArrowRight className="h-6 w-6 text-primary" />
             </div>
@@ -160,10 +162,12 @@ export function VerificationResult({ data }: VerificationResultProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">To (Receiver)</p>
-                <p className="font-semibold text-lg">{data.receiverName || 'Not Available'}</p>
-                {data.receiverAccountNumber && (
+                <p className="font-semibold text-lg">{data.receiverName || (data.narrative ? 'See Narrative' : (data.success ? 'Not Provided by Bank' : 'Not Found'))}</p>
+                {data.receiverAccountNumber ? (
                   <p className="text-sm font-mono text-muted-foreground">{data.receiverAccountNumber}</p>
-                )}
+                ) : data.success ? (
+                  <p className="text-xs text-muted-foreground">Check narrative below</p>
+                ) : null}
               </div>
             </div>
           </div>
