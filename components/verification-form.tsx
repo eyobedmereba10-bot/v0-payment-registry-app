@@ -144,17 +144,12 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
 
       const verificationData: VerificationResponse = await verifyResponse.json()
 
-      if (!verificationData.success) {
-        setError(verificationData.error || 'Verification failed')
-        onAnalyzing(false)
-        return
-      }
-
+      // Always run AI analysis - even if verification fails, we want AI to explain why
       const analyzeResponse = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...verificationData,
+          verificationResult: verificationData,
           extractedData: extractedData,
         }),
       })

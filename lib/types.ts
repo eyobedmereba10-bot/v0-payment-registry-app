@@ -18,6 +18,8 @@ export interface VerificationResponse {
   success: boolean
   senderName?: string
   senderAccountNumber?: string
+  receiverName?: string
+  receiverAccountNumber?: string
   transactionChannel?: string
   serviceType?: string
   narrative?: string
@@ -25,8 +27,12 @@ export interface VerificationResponse {
   transferReference?: string
   transactionAmount?: number
   serviceCharge?: number
+  exciseTax?: number
+  vat?: number
   total?: number
+  transactionDate?: string
   error?: string
+  message?: string
 }
 
 export interface Transaction {
@@ -45,6 +51,7 @@ export interface AIAnalysis {
   riskLevel: 'low' | 'medium' | 'high'
   summary: string
   flags: string[]
+  recommendation?: string
 }
 
 export interface ExtractedData {

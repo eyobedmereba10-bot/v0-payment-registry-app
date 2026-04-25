@@ -1,27 +1,60 @@
 import { createGroq } from "@ai-sdk/groq";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-const extractionSchema = z.object({
-  transactionReference: z.string().describe("The transaction reference number, receipt number, or transaction ID"),
-  amount: z.string().optional().describe("The transaction amount with currency"),
-  senderName: z.string().optional().describe("Name of the sender/payer"),
-  senderAccount: z.string().optional().describe("Sender account number or phone number"),
-  receiverName: z.string().optional().describe("Name of the receiver/payee"),
-  receiverAccount: z.string().optional().describe("Receiver account number or phone number"),
-  date: z.string().optional().describe("Transaction date"),
-  time: z.string().optional().describe("Transaction time"),
-  paymentMethod: z.enum(["cbe", "telebirr", "dashen", "abyssinia", "cbebirr", "mpesa", "unknown"]).describe("The payment provider detected from the screenshot"),
-  bankName: z.string().optional().describe("Full name of the bank or payment provider"),
-  transactionType: z.string().optional().describe("Type of transaction (transfer, payment, withdrawal, etc.)"),
-  status: z.string().optional().describe("Transaction status if visible"),
-  additionalNotes: z.string().optional().describe("Any other relevant information from the screenshot"),
-});
+interface ExtractedData {
+  transactionReference: string
+  amount?: string
+  senderName?: string
+  senderAccount?: string
+  receiverName?: string
+  receiverAccount?: string
+  date?: string
+  time?: string
+  paymentMethod: "cbe" | "telebirr" | "dashen" | "abyssinia" | "cbebirr" | "mpesa" | "unknown"
+  bankName?: string
+  transactionType?: string
+  status?: string
+  additionalNotes?: string
+}
+
+function parseExtractedData(text: string): ExtractedData {
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      const validMethods = ["cbe", "telebirr", "dashen", "abyssinia", "cbebirr", "mpesa", "unknown"]
+      return {
+        transactionReference: String(parsed.transactionReference || ''),
+        amount: parsed.amount ? String(parsed.amount) : undefined,
+        senderName: parsed.senderName ? String(parsed.senderName) : undefined,
+        senderAccount: parsed.senderAccount ? String(parsed.senderAccount) : undefined,
+        receiverName: parsed.receiverName ? String(parsed.receiverName) : undefined,
+        receiverAccount: parsed.receiverAccount ? String(parsed.receiverAccount) : undefined,
+        date: parsed.date ? String(parsed.date) : undefined,
+        time: parsed.time ? String(parsed.time) : undefined,
+        paymentMethod: validMethods.includes(parsed.paymentMethod?.toLowerCase()) 
+          ? parsed.paymentMethod.toLowerCase() 
+          : 'unknown',
+        bankName: parsed.bankName ? String(parsed.bankName) : undefined,
+        transactionType: parsed.transactionType ? String(parsed.transactionType) : undefined,
+        status: parsed.status ? String(parsed.status) : undefined,
+        additionalNotes: parsed.additionalNotes ? String(parsed.additionalNotes) : undefined,
+      }
+    }
+  } catch {
+    // If JSON parsing fails, return empty data
+  }
+  
+  return {
+    transactionReference: '',
+    paymentMethod: 'unknown',
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,8 +63,15 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json(
-        { error: "No screenshot provided" },
+        { success: false, error: "No screenshot provided" },
         { status: 400 }
+      );
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: "Groq API key not configured" },
+        { status: 500 }
       );
     }
 
@@ -40,28 +80,38 @@ export async function POST(request: NextRequest) {
     const base64 = Buffer.from(bytes).toString("base64");
     const mimeType = file.type || "image/png";
 
-    const { object } = await generateObject({
+    const { text } = await generateText({
       model: groq("llama-3.2-90b-vision-preview"),
-      schema: extractionSchema,
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Analyze this Ethiopian payment screenshot and extract all transaction details. 
-              
+              text: `Analyze this Ethiopian payment screenshot and extract all transaction details.
+
 This could be from CBE (Commercial Bank of Ethiopia), Telebirr, Dashen Bank, Bank of Abyssinia, CBE Birr, or M-Pesa.
 
-Extract:
-- Transaction reference/receipt number (most important)
-- Amount
-- Sender and receiver details
-- Date and time
-- Payment provider/bank
-- Transaction status
+Extract the following information and respond with ONLY a valid JSON object:
 
-Be precise with the transaction reference number as it will be used for verification.`,
+{
+  "transactionReference": "<the transaction reference/receipt number - THIS IS MOST IMPORTANT>",
+  "amount": "<transaction amount with ETB>",
+  "senderName": "<name of sender/payer>",
+  "senderAccount": "<sender account number or phone>",
+  "receiverName": "<name of receiver/payee>",
+  "receiverAccount": "<receiver account number or phone>",
+  "date": "<transaction date>",
+  "time": "<transaction time>",
+  "paymentMethod": "<cbe | telebirr | dashen | abyssinia | cbebirr | mpesa | unknown>",
+  "bankName": "<full bank/provider name>",
+  "transactionType": "<transfer | payment | withdrawal | deposit | etc>",
+  "status": "<success | pending | failed | etc>",
+  "additionalNotes": "<any other relevant info>"
+}
+
+Be precise with the transaction reference number as it will be used for verification.
+Respond with ONLY the JSON object, no other text:`,
             },
             {
               type: "image",
@@ -72,14 +122,23 @@ Be precise with the transaction reference number as it will be used for verifica
       ],
     });
 
+    const extractedData = parseExtractedData(text);
+
+    if (!extractedData.transactionReference) {
+      return NextResponse.json({
+        success: false,
+        error: "Could not extract transaction reference from screenshot. Please enter manually.",
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      extractedData: object,
+      extractedData,
     });
   } catch (error) {
     console.error("Extraction error:", error);
     return NextResponse.json(
-      { error: "Failed to extract data from screenshot" },
+      { success: false, error: "Failed to extract data from screenshot. Please try again or enter details manually." },
       { status: 500 }
     );
   }
