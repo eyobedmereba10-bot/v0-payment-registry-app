@@ -26,11 +26,12 @@ interface VerificationResultProps {
 }
 
 export function VerificationResult({ data }: VerificationResultProps) {
-  const formatCurrency = (amount?: number) => {
-    if (amount === undefined || amount === null) return '-'
+  const formatCurrency = (amount?: number | null) => {
+    if (amount === undefined || amount === null || amount === 0) return 'ETB 0.00'
     return new Intl.NumberFormat('en-ET', {
       style: 'currency',
       currency: 'ETB',
+      minimumFractionDigits: 2,
     }).format(amount)
   }
 
@@ -138,19 +139,25 @@ export function VerificationResult({ data }: VerificationResultProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">From (Sender)</p>
-                <p className="font-semibold text-lg">{data.senderName || (data.success ? 'See Details Below' : 'Not Found')}</p>
-                {data.senderAccountNumber ? (
-                  <p className="text-sm font-mono text-muted-foreground">{data.senderAccountNumber}</p>
-                ) : data.success ? (
-                  <p className="text-xs text-muted-foreground">Account hidden</p>
-                ) : null}
+                <p className="font-semibold text-lg">
+                  {data.senderName || (data.success ? 'Name Hidden' : 'Not Found')}
+                </p>
+                <p className="text-sm font-mono text-muted-foreground">
+                  {data.senderAccountNumber || (data.success ? 'Account Hidden' : 'N/A')}
+                </p>
               </div>
             </div>
 
             {/* Arrow with Amount */}
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center gap-2 px-4 py-2 bg-primary rounded-full text-primary-foreground">
-                <span className="font-bold text-lg">{data.transactionAmount ? formatCurrency(data.transactionAmount) : (data.total ? formatCurrency(data.total) : 'Amount N/A')}</span>
+                <span className="font-bold text-lg">
+                  {data.transactionAmount > 0 
+                    ? formatCurrency(data.transactionAmount) 
+                    : data.total > 0 
+                      ? formatCurrency(data.total) 
+                      : 'ETB 0.00'}
+                </span>
               </div>
               <ArrowRight className="h-6 w-6 text-primary" />
             </div>
@@ -162,12 +169,12 @@ export function VerificationResult({ data }: VerificationResultProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">To (Receiver)</p>
-                <p className="font-semibold text-lg">{data.receiverName || (data.narrative ? 'See Narrative' : (data.success ? 'Not Provided by Bank' : 'Not Found'))}</p>
-                {data.receiverAccountNumber ? (
-                  <p className="text-sm font-mono text-muted-foreground">{data.receiverAccountNumber}</p>
-                ) : data.success ? (
-                  <p className="text-xs text-muted-foreground">Check narrative below</p>
-                ) : null}
+                <p className="font-semibold text-lg">
+                  {data.receiverName || (data.narrative ? 'See Description' : (data.success ? 'Not Provided' : 'Not Found'))}
+                </p>
+                <p className="text-sm font-mono text-muted-foreground">
+                  {data.receiverAccountNumber || (data.narrative ? 'Check below' : 'N/A')}
+                </p>
               </div>
             </div>
           </div>
@@ -175,30 +182,26 @@ export function VerificationResult({ data }: VerificationResultProps) {
           {/* Amount Breakdown */}
           <div className="p-4 rounded-lg bg-muted/50 mb-4">
             <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wide">Financial Breakdown</h4>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground">Amount</span>
-                <span className="font-bold text-xl text-primary">{formatCurrency(data.transactionAmount)}</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="flex flex-col p-3 bg-primary/10 rounded-lg">
+                <span className="text-xs text-muted-foreground">Transaction Amount</span>
+                <span className="font-bold text-2xl text-primary">
+                  {data.transactionAmount > 0 ? formatCurrency(data.transactionAmount) : 'ETB 0.00'}
+                </span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground">Service Fee</span>
-                <span className="font-medium">{formatCurrency(data.serviceCharge || 0)}</span>
+              <div className="flex flex-col p-3 bg-background rounded-lg border">
+                <span className="text-xs text-muted-foreground">Service Charge</span>
+                <span className="font-medium text-lg">{formatCurrency(data.serviceCharge)}</span>
               </div>
-              {(data.exciseTax !== undefined && data.exciseTax > 0) && (
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">Excise Tax</span>
-                  <span className="font-medium">{formatCurrency(data.exciseTax)}</span>
-                </div>
-              )}
-              {(data.vat !== undefined && data.vat > 0) && (
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">VAT</span>
-                  <span className="font-medium">{formatCurrency(data.vat)}</span>
-                </div>
-              )}
-              <div className="flex flex-col">
+              <div className="flex flex-col p-3 bg-background rounded-lg border">
+                <span className="text-xs text-muted-foreground">Taxes (Excise + VAT)</span>
+                <span className="font-medium text-lg">{formatCurrency((data.exciseTax || 0) + (data.vat || 0))}</span>
+              </div>
+              <div className="flex flex-col p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
                 <span className="text-xs text-muted-foreground">Total Paid</span>
-                <span className="font-bold text-xl">{formatCurrency(data.total || data.transactionAmount)}</span>
+                <span className="font-bold text-2xl text-green-700 dark:text-green-400">
+                  {data.total > 0 ? formatCurrency(data.total) : formatCurrency(data.transactionAmount)}
+                </span>
               </div>
             </div>
           </div>
@@ -309,40 +312,7 @@ export function VerificationResult({ data }: VerificationResultProps) {
               <p className="text-foreground leading-relaxed">{data.aiAnalysis.summary}</p>
             </div>
 
-            {/* Verified Details from AI */}
-            {data.aiAnalysis.transactionDetails && (
-              <div className="rounded-lg border p-4">
-                <h4 className="text-sm font-medium mb-3 uppercase tracking-wide text-muted-foreground">Verified Transaction Details</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground">Sender</span>
-                    <span className="font-medium">{data.aiAnalysis.transactionDetails.verifiedSender}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground">Receiver</span>
-                    <span className="font-medium">{data.aiAnalysis.transactionDetails.verifiedReceiver}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground">Amount</span>
-                    <span className="font-medium">{data.aiAnalysis.transactionDetails.verifiedAmount}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground">Date</span>
-                    <span className="font-medium">{data.aiAnalysis.transactionDetails.verifiedDate}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground">Reference</span>
-                    <span className="font-medium font-mono">{data.aiAnalysis.transactionDetails.verifiedReference}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground">Status</span>
-                    <span className={`font-medium ${data.success ? 'text-green-600' : 'text-red-600'}`}>
-                      {data.aiAnalysis.transactionDetails.verificationStatus}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {/* Observations */}
             {data.aiAnalysis.flags && data.aiAnalysis.flags.length > 0 && (

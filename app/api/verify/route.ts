@@ -55,29 +55,44 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(requestBody),
     })
 
-    const data = await response.json()
+    const rawData = await response.json()
+    
+    // Log the raw response for debugging
+    console.log('[v0] Raw API response:', JSON.stringify(rawData, null, 2))
+    
+    // The API returns data directly (not nested)
+    const data = rawData
 
-    // Map the API response to our expected format
-    const verificationResponse: VerificationResponse = {
-      success: data.success ?? false,
-      senderName: data.senderName,
-      senderAccountNumber: data.senderAccountNumber,
-      receiverName: data.receiverName,
-      receiverAccountNumber: data.receiverAccountNumber,
-      transactionChannel: data.transactionChannel,
-      serviceType: data.serviceType,
-      narrative: data.narrative,
-      transactionReference: data.transactionReference,
-      transferReference: data.transferReference,
-      transactionAmount: data.transactionAmount,
-      serviceCharge: data.serviceCharge,
-      exciseTax: data.exciseTax,
-      vat: data.vat,
-      total: data.total,
-      transactionDate: data.transactionDate,
-      error: data.error,
-      message: data.message,
+    // Helper to safely parse numbers
+    const parseNum = (val: unknown): number => {
+      if (val === null || val === undefined) return 0
+      const num = typeof val === 'number' ? val : parseFloat(String(val))
+      return isNaN(num) ? 0 : num
     }
+
+    // Map the API response - use the exact field names from the API documentation
+    const verificationResponse: VerificationResponse = {
+      success: data.success === true,
+      senderName: data.senderName ?? null,
+      senderAccountNumber: data.senderAccountNumber ?? null,
+      receiverName: data.receiverName ?? null,
+      receiverAccountNumber: data.receiverAccountNumber ?? null,
+      transactionChannel: data.transactionChannel ?? null,
+      serviceType: data.serviceType ?? null,
+      narrative: data.narrative ?? null,
+      transactionReference: data.transactionReference ?? null,
+      transferReference: data.transferReference ?? null,
+      transactionAmount: parseNum(data.transactionAmount),
+      serviceCharge: parseNum(data.serviceCharge),
+      exciseTax: parseNum(data.exciseTax),
+      vat: parseNum(data.vat),
+      total: parseNum(data.total),
+      transactionDate: data.transactionDate ?? null,
+      error: data.error ?? null,
+      message: data.message ?? null,
+    }
+    
+    console.log('[v0] Mapped response:', JSON.stringify(verificationResponse, null, 2))
 
     return NextResponse.json(verificationResponse)
   } catch (error) {
