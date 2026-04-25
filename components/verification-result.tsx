@@ -2,7 +2,21 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, XCircle, AlertTriangle, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react'
+import { 
+  CheckCircle2, 
+  XCircle, 
+  AlertTriangle, 
+  ShieldCheck, 
+  ShieldAlert, 
+  ShieldX,
+  User,
+  ArrowRight,
+  Banknote,
+  Calendar,
+  CreditCard,
+  FileText,
+  Building2
+} from 'lucide-react'
 import type { VerificationResponse } from '@/lib/types'
 
 interface AIAnalysisExtended {
@@ -47,7 +61,7 @@ export function VerificationResult({ data }: VerificationResultProps) {
   }
 
   const getRecommendationStyle = (recommendation?: string) => {
-    if (!recommendation) return { icon: AlertTriangle, bgColor: 'bg-muted', textColor: 'text-muted-foreground' }
+    if (!recommendation) return { icon: AlertTriangle, bgColor: 'bg-muted', textColor: 'text-muted-foreground', borderColor: 'border-muted' }
     const upper = recommendation.toUpperCase()
     if (upper.startsWith('APPROVE')) {
       return { icon: ShieldCheck, bgColor: 'bg-green-50 dark:bg-green-950', textColor: 'text-green-700 dark:text-green-400', borderColor: 'border-green-200 dark:border-green-800' }
@@ -97,7 +111,7 @@ export function VerificationResult({ data }: VerificationResultProps) {
               Verification Status
             </CardTitle>
             <Badge variant={data.success ? 'default' : 'destructive'}>
-              {data.success ? 'FOUND IN BANK SYSTEM' : 'NOT FOUND'}
+              {data.success ? 'VERIFIED' : 'NOT FOUND'}
             </Badge>
           </div>
           <CardDescription>
@@ -108,64 +122,130 @@ export function VerificationResult({ data }: VerificationResultProps) {
         </CardHeader>
       </Card>
 
-      {/* Transaction Details */}
+      {/* Payment Information - Main Section */}
       {data.success && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Transaction Details</CardTitle>
+        <Card className="border-2 border-primary/20">
+          <CardHeader className="pb-2 bg-primary/5">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-primary" />
+              Payment Information
+            </CardTitle>
             <CardDescription>
-              Reference: {data.transactionReference || data.transferReference || '-'}
+              Reference: <span className="font-mono font-medium text-foreground">{data.transactionReference || data.transferReference || '-'}</span>
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Sender Name</dt>
-                <dd className="font-medium">{data.senderName || '-'}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Account Number</dt>
-                <dd className="font-medium font-mono">{data.senderAccountNumber || '-'}</dd>
-              </div>
-              {data.receiverName && (
+          <CardContent className="pt-4">
+            {/* Payment Flow: Sender -> Receiver */}
+            <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center mb-6 p-4 bg-muted/30 rounded-lg">
+              {/* Sender */}
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="h-14 w-14 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                  <User className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+                </div>
                 <div>
-                  <dt className="text-muted-foreground">Receiver Name</dt>
-                  <dd className="font-medium">{data.receiverName}</dd>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Sender</p>
+                  <p className="font-semibold text-lg">{data.senderName || 'Unknown'}</p>
+                  {data.senderAccountNumber && (
+                    <p className="text-sm font-mono text-muted-foreground">{data.senderAccountNumber}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Arrow with Amount */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex items-center gap-2 px-4 py-2 bg-primary rounded-full text-primary-foreground">
+                  <span className="font-bold text-lg">{formatCurrency(data.transactionAmount)}</span>
+                </div>
+                <ArrowRight className="h-6 w-6 text-primary" />
+              </div>
+
+              {/* Receiver */}
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="h-14 w-14 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                  <User className="h-7 w-7 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Receiver</p>
+                  <p className="font-semibold text-lg">{data.receiverName || 'Unknown'}</p>
+                  {data.receiverAccountNumber && (
+                    <p className="text-sm font-mono text-muted-foreground">{data.receiverAccountNumber}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Transaction Details Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Amount Details */}
+              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Amount</span>
+                    <span className="font-bold text-xl text-primary">{formatCurrency(data.transactionAmount)}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Service Fee</span>
+                    <span className="font-medium">{formatCurrency(data.serviceCharge)}</span>
+                  </div>
+                  {data.exciseTax !== undefined && data.exciseTax > 0 && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Excise Tax</span>
+                      <span className="font-medium">{formatCurrency(data.exciseTax)}</span>
+                    </div>
+                  )}
+                  {data.vat !== undefined && data.vat > 0 && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">VAT</span>
+                      <span className="font-medium">{formatCurrency(data.vat)}</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Total</span>
+                    <span className="font-bold text-xl">{formatCurrency(data.total)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transaction Channel */}
+              <div className="flex items-start gap-3 p-3 rounded-lg border">
+                <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Channel</span>
+                  <span className="font-medium">{data.transactionChannel || '-'}</span>
+                </div>
+              </div>
+
+              {/* Service Type */}
+              <div className="flex items-start gap-3 p-3 rounded-lg border">
+                <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Service Type</span>
+                  <span className="font-medium">{data.serviceType || '-'}</span>
+                </div>
+              </div>
+
+              {/* Transaction Date */}
+              {data.transactionDate && (
+                <div className="flex items-start gap-3 p-3 rounded-lg border">
+                  <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Date</span>
+                    <span className="font-medium">{data.transactionDate}</span>
+                  </div>
                 </div>
               )}
-              {data.receiverAccountNumber && (
-                <div>
-                  <dt className="text-muted-foreground">Receiver Account</dt>
-                  <dd className="font-medium font-mono">{data.receiverAccountNumber}</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-muted-foreground">Amount</dt>
-                <dd className="font-medium text-lg">{formatCurrency(data.transactionAmount)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Total</dt>
-                <dd className="font-medium text-lg">{formatCurrency(data.total)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Service Charge</dt>
-                <dd className="font-medium">{formatCurrency(data.serviceCharge)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Channel</dt>
-                <dd className="font-medium">{data.transactionChannel || '-'}</dd>
-              </div>
-              <div className="col-span-2">
-                <dt className="text-muted-foreground">Service Type</dt>
-                <dd className="font-medium">{data.serviceType || '-'}</dd>
-              </div>
+
+              {/* Narrative/Description */}
               {data.narrative && (
-                <div className="col-span-2">
-                  <dt className="text-muted-foreground">Narrative</dt>
-                  <dd className="font-medium">{data.narrative}</dd>
+                <div className="flex items-start gap-3 p-3 rounded-lg border col-span-2">
+                  <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex flex-col flex-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Description / Narrative</span>
+                    <span className="font-medium">{data.narrative}</span>
+                  </div>
                 </div>
               )}
-            </dl>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -219,12 +299,17 @@ export function VerificationResult({ data }: VerificationResultProps) {
                     const isPositive = flag.toLowerCase().includes('confirmed') || 
                                        flag.toLowerCase().includes('verified') || 
                                        flag.toLowerCase().includes('match') ||
-                                       flag.toLowerCase().includes('found')
+                                       flag.toLowerCase().includes('found') ||
+                                       flag.toLowerCase().includes('valid') ||
+                                       flag.toLowerCase().includes('legitimate')
                     const isNegative = flag.toLowerCase().includes('not found') ||
                                        flag.toLowerCase().includes('suspicious') ||
                                        flag.toLowerCase().includes('mismatch') ||
                                        flag.toLowerCase().includes('missing') ||
-                                       flag.toLowerCase().includes('failed')
+                                       flag.toLowerCase().includes('failed') ||
+                                       flag.toLowerCase().includes('invalid') ||
+                                       flag.toLowerCase().includes('fraud') ||
+                                       flag.toLowerCase().includes('fake')
                     return (
                       <li key={index} className="flex items-start gap-2 text-sm">
                         {isPositive ? (
