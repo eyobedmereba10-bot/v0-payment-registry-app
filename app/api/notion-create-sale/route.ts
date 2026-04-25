@@ -1,6 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const NOTION_API_URL = 'https://api.notion.com/v1/pages'
+const NOTION_API_URL = 'https://api.notion.com/v1'
+
+// Check if a reference number already exists in the database
+async function checkDuplicateReference(
+  databaseId: string, 
+  reference: string, 
+  notionApiKey: string
+): Promise<{ exists: boolean; pageUrl?: string }> {
+  if (!reference) return { exists: false }
+  
+  try {
+    const response = await fetch(`${NOTION_API_URL}/databases/${databaseId}/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${notionApiKey}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28',
+      },
+      body: JSON.stringify({
+        filter: {
+          property: 'Reference',
+          rich_text: {
+            equals: reference
+          }
+        },
+        page_size: 1
+      }),
+    })
+
+    const result = await response.json()
+    
+    if (result.results && result.results.length > 0) {
+      const existingPage = result.results[0]
+      const pageUrl = existingPage.url || `https://notion.so/${existingPage.id?.replace(/-/g, '')}`
+      return { exists: true, pageUrl }
+    }
+    
+    return { exists: false }
+  } catch (error) {
+    console.error('Error checking for duplicate:', error)
+    return { exists: false } // Proceed with creation if check fails
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +69,20 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Notion credentials not configured. Please add NOTION_API_KEY and NOTION_DATABASE_ID.' },
         { status: 500 }
       )
+    }
+
+    // Check for duplicate reference number
+    if (reference) {
+      const duplicateCheck = await checkDuplicateReference(databaseId, reference, notionApiKey)
+      
+      if (duplicateCheck.exists) {
+        return NextResponse.json({
+          success: false,
+          isDuplicate: true,
+          error: `This transaction (${reference}) is already registered in your database.`,
+          existingPageUrl: duplicateCheck.pageUrl,
+        }, { status: 409 }) // 409 Conflict
+      }
     }
 
     // Map payment method to Notion select options
@@ -101,7 +157,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the page in Notion
-    const response = await fetch(NOTION_API_URL, {
+    const response = await fetch(`${NOTION_API_URL}/pages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${notionApiKey}`,
@@ -131,6 +187,7 @@ export async function POST(request: NextRequest) {
       success: true,
       pageId: result.id,
       pageUrl,
+      message: 'Sale registered successfully!',
     })
 
   } catch (error) {

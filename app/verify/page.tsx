@@ -27,7 +27,13 @@ export default function VerifyPage() {
     setHistory((prev) => [transactionWithTimestamp, ...prev].slice(0, 10))
   }
 
-  const handleRegisterToNotion = async (): Promise<{ success: boolean; pageUrl?: string; error?: string }> => {
+  const handleRegisterToNotion = async (): Promise<{ 
+    success: boolean; 
+    pageUrl?: string; 
+    error?: string;
+    isDuplicate?: boolean;
+    existingPageUrl?: string;
+  }> => {
     if (!currentResult) {
       return { success: false, error: 'No transaction to register' }
     }
@@ -50,7 +56,7 @@ export default function VerifyPage() {
         notes: currentResult.narrative || currentResult.aiAnalysis?.summary || '',
       }
 
-      // Call the Notion API endpoint directly
+      // Call the Notion API endpoint
       const response = await fetch('/api/notion-create-sale', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,6 +69,14 @@ export default function VerifyPage() {
         return { 
           success: true, 
           pageUrl: result.pageUrl || 'https://notion.so'
+        }
+      } else if (result.isDuplicate) {
+        // Handle duplicate transaction
+        return { 
+          success: false, 
+          isDuplicate: true,
+          error: result.error,
+          existingPageUrl: result.existingPageUrl
         }
       } else {
         return { success: false, error: result.error || 'Failed to create Notion page' }

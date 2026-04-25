@@ -8,7 +8,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { 
   CheckCircle2, 
   XCircle, 
-  AlertTriangle, 
+  AlertTriangle,
+  AlertCircle,
   ShieldCheck, 
   ShieldAlert, 
   ShieldX,
@@ -28,12 +29,24 @@ import type { VerificationResponse, AIAnalysis } from '@/lib/types'
 
 interface VerificationResultProps {
   data: VerificationResponse & { aiAnalysis?: AIAnalysis }
-  onRegisterToNotion?: () => Promise<{ success: boolean; pageUrl?: string; error?: string }>
+  onRegisterToNotion?: () => Promise<{ 
+    success: boolean; 
+    pageUrl?: string; 
+    error?: string;
+    isDuplicate?: boolean;
+    existingPageUrl?: string;
+  }>
 }
 
 export function VerificationResult({ data, onRegisterToNotion }: VerificationResultProps) {
   const [isRegistering, setIsRegistering] = useState(false)
-  const [registrationResult, setRegistrationResult] = useState<{ success: boolean; pageUrl?: string; error?: string } | null>(null)
+  const [registrationResult, setRegistrationResult] = useState<{ 
+    success: boolean; 
+    pageUrl?: string; 
+    error?: string;
+    isDuplicate?: boolean;
+    existingPageUrl?: string;
+  } | null>(null)
   const formatCurrency = (amount?: number | null) => {
     if (amount === undefined || amount === null || amount === 0) return 'ETB 0.00'
     return new Intl.NumberFormat('en-ET', {
@@ -412,10 +425,33 @@ export function VerificationResult({ data, onRegisterToNotion }: VerificationRes
                       </a>
                     )}
                   </div>
+                ) : registrationResult.isDuplicate ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2 text-yellow-600">
+                      <AlertCircle className="h-5 w-5" />
+                      <span className="font-medium">Already Registered</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground text-center max-w-sm">
+                      {registrationResult.error || 'This transaction is already in your database.'}
+                    </p>
+                    {registrationResult.existingPageUrl && (
+                      <a 
+                        href={registrationResult.existingPageUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        View existing entry <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <XCircle className="h-5 w-5" />
-                    <span className="text-sm">{registrationResult.error || 'Failed to register'}</span>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <XCircle className="h-5 w-5" />
+                      <span className="font-medium">Registration Failed</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{registrationResult.error || 'Failed to register'}</p>
                   </div>
                 )
               ) : (
