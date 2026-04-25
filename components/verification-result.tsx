@@ -1,7 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { 
   CheckCircle2, 
   XCircle, 
@@ -17,15 +20,20 @@ import {
   FileText,
   Building2,
   Hash,
-  Clock
+  Clock,
+  BookOpen,
+  ExternalLink
 } from 'lucide-react'
 import type { VerificationResponse, AIAnalysis } from '@/lib/types'
 
 interface VerificationResultProps {
   data: VerificationResponse & { aiAnalysis?: AIAnalysis }
+  onRegisterToNotion?: () => Promise<{ success: boolean; pageUrl?: string; error?: string }>
 }
 
-export function VerificationResult({ data }: VerificationResultProps) {
+export function VerificationResult({ data, onRegisterToNotion }: VerificationResultProps) {
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [registrationResult, setRegistrationResult] = useState<{ success: boolean; pageUrl?: string; error?: string } | null>(null)
   const formatCurrency = (amount?: number | null) => {
     if (amount === undefined || amount === null || amount === 0) return 'ETB 0.00'
     return new Intl.NumberFormat('en-ET', {
@@ -69,6 +77,22 @@ export function VerificationResult({ data }: VerificationResultProps) {
 
   const recStyle = getRecommendationStyle(data.aiAnalysis?.recommendation)
   const RecIcon = recStyle.icon
+
+  const handleRegisterToNotion = async () => {
+    if (!onRegisterToNotion) return
+    
+    setIsRegistering(true)
+    setRegistrationResult(null)
+    
+    try {
+      const result = await onRegisterToNotion()
+      setRegistrationResult(result)
+    } catch (error) {
+      setRegistrationResult({ success: false, error: 'Failed to register sale' })
+    } finally {
+      setIsRegistering(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -353,6 +377,68 @@ export function VerificationResult({ data }: VerificationResultProps) {
                 </ul>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Register to Notion Section */}
+      {data.success && onRegisterToNotion && (
+        <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+          <CardContent className="py-6">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-6 w-6 text-primary" />
+                <h3 className="font-semibold text-lg">Register Sale to Notion</h3>
+              </div>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Save this verified transaction to your Notion Sales database for record-keeping and analytics.
+              </p>
+              
+              {registrationResult ? (
+                registrationResult.success ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2 text-green-600">
+                      <CheckCircle2 className="h-5 w-5" />
+                      <span className="font-medium">Sale registered successfully!</span>
+                    </div>
+                    {registrationResult.pageUrl && (
+                      <a 
+                        href={registrationResult.pageUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        Open in Notion <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-red-600">
+                    <XCircle className="h-5 w-5" />
+                    <span className="text-sm">{registrationResult.error || 'Failed to register'}</span>
+                  </div>
+                )
+              ) : (
+                <Button 
+                  onClick={handleRegisterToNotion} 
+                  disabled={isRegistering}
+                  size="lg"
+                  className="gap-2"
+                >
+                  {isRegistering ? (
+                    <>
+                      <Spinner className="h-4 w-4" />
+                      Registering...
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="h-4 w-4" />
+                      Register to Notion
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

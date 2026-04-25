@@ -18,7 +18,9 @@ import {
   Server,
   Activity,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  BookOpen,
+  Database
 } from 'lucide-react'
 
 const features = [
@@ -39,6 +41,12 @@ const features = [
     title: 'Screenshot Recognition',
     description: 'Upload payment screenshots and our AI extracts all transaction details automatically.',
     highlight: 'Smart',
+  },
+  {
+    icon: BookOpen,
+    title: 'Notion Integration',
+    description: 'Automatically register verified sales to your Notion database for seamless record-keeping.',
+    highlight: 'New',
   },
 ]
 
@@ -172,8 +180,8 @@ export default function LandingPage() {
             
             {/* Subheading */}
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 text-pretty animate-slide-up animation-delay-100">
-              Stop fraud before it happens. Our AI-powered platform verifies transactions 
-              from CBE, Telebirr, Dashen, and more with bank-level accuracy.
+              For business owners: Verify payments, detect fraud, and automatically 
+              register sales to Notion. All from a screenshot or reference number.
             </p>
             
             {/* CTAs */}
@@ -275,7 +283,7 @@ export default function LandingPage() {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature, index) => (
               <Card 
                 key={feature.title} 
