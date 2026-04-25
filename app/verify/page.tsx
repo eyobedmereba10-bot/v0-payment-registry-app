@@ -11,80 +11,32 @@ import { Spinner } from '@/components/ui/spinner'
 import { ArrowLeft, Shield } from 'lucide-react'
 import type { VerificationResponse, AIAnalysis } from '@/lib/types'
 
-type TransactionWithMeta = VerificationResponse & { aiAnalysis?: AIAnalysis; timestamp: string }
+interface NotionResult {
+  success: boolean
+  pageUrl?: string
+  error?: string
+  isDuplicate?: boolean
+  existingPageUrl?: string
+}
+
+type TransactionWithMeta = VerificationResponse & { 
+  aiAnalysis?: AIAnalysis
+  notionResult?: NotionResult
+  timestamp: string 
+}
 
 export default function VerifyPage() {
   const [currentResult, setCurrentResult] = useState<TransactionWithMeta | null>(null)
   const [history, setHistory] = useState<TransactionWithMeta[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
-  const handleVerificationComplete = (data: VerificationResponse & { aiAnalysis?: AIAnalysis }) => {
+  const handleVerificationComplete = (data: VerificationResponse & { aiAnalysis?: AIAnalysis; notionResult?: NotionResult }) => {
     const transactionWithTimestamp = {
       ...data,
       timestamp: new Date().toISOString(),
     }
     setCurrentResult(transactionWithTimestamp)
     setHistory((prev) => [transactionWithTimestamp, ...prev].slice(0, 10))
-  }
-
-  const handleRegisterToNotion = async (): Promise<{ 
-    success: boolean; 
-    pageUrl?: string; 
-    error?: string;
-    isDuplicate?: boolean;
-    existingPageUrl?: string;
-  }> => {
-    if (!currentResult) {
-      return { success: false, error: 'No transaction to register' }
-    }
-
-    try {
-      // Prepare sale data for Notion
-      const saleData = {
-        transactionTitle: `${currentResult.senderName || 'Unknown'} - ${currentResult.transactionReference || 'No Ref'}`,
-        reference: currentResult.transactionReference || currentResult.transferReference || '',
-        amount: currentResult.transactionAmount || currentResult.total || 0,
-        senderName: currentResult.senderName || '',
-        senderAccount: currentResult.senderAccountNumber || '',
-        receiverName: currentResult.receiverName || '',
-        receiverAccount: currentResult.receiverAccountNumber || '',
-        paymentMethod: currentResult.transactionChannel || 'Unknown',
-        status: currentResult.success ? 'Verified' : 'Failed',
-        riskLevel: currentResult.aiAnalysis?.riskLevel === 'high' ? 'High' : 
-                   currentResult.aiAnalysis?.riskLevel === 'medium' ? 'Medium' : 'Low',
-        transactionDate: currentResult.transactionDate || null,
-        notes: currentResult.narrative || currentResult.aiAnalysis?.summary || '',
-      }
-
-      // Call the Notion API endpoint
-      const response = await fetch('/api/notion-create-sale', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(saleData),
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        return { 
-          success: true, 
-          pageUrl: result.pageUrl || 'https://notion.so'
-        }
-      } else if (result.isDuplicate) {
-        // Handle duplicate transaction
-        return { 
-          success: false, 
-          isDuplicate: true,
-          error: result.error,
-          existingPageUrl: result.existingPageUrl
-        }
-      } else {
-        return { success: false, error: result.error || 'Failed to create Notion page' }
-      }
-    } catch (error) {
-      console.error('Error registering to Notion:', error)
-      return { success: false, error: 'Failed to register sale to Notion' }
-    }
   }
 
   return (
@@ -119,9 +71,9 @@ export default function VerifyPage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold mb-2">Verify Payment</h1>
+          <h1 className="text-2xl font-bold mb-2">Verify & Register Sales</h1>
           <p className="text-muted-foreground">
-            Upload a screenshot or enter transaction details to verify and analyze payments.
+            Verify payments and automatically save approved transactions to your Notion database.
           </p>
         </div>
 
@@ -141,12 +93,12 @@ export default function VerifyPage() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <Spinner className="h-8 w-8 mb-4" />
-                  <p className="font-medium mb-1">Verifying Transaction</p>
-                  <p className="text-sm text-muted-foreground">Connecting to bank API and analyzing with AI...</p>
+                  <p className="font-medium mb-1">Processing Payment</p>
+                  <p className="text-sm text-muted-foreground">Verifying with bank, analyzing with AI, and saving to Notion...</p>
                 </CardContent>
               </Card>
             ) : currentResult ? (
-              <VerificationResult data={currentResult} onRegisterToNotion={handleRegisterToNotion} />
+              <VerificationResult data={currentResult} />
             ) : (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-16 text-center">
@@ -155,7 +107,7 @@ export default function VerifyPage() {
                   </div>
                   <h3 className="font-semibold text-lg mb-2">Ready to Verify</h3>
                   <p className="text-sm text-muted-foreground max-w-xs">
-                    Upload a payment screenshot or enter a transaction reference to verify and get AI-powered fraud analysis.
+                    Upload a payment screenshot or enter a reference number. Approved payments are automatically saved to Notion.
                   </p>
                 </CardContent>
               </Card>

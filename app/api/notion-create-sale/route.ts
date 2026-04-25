@@ -40,7 +40,7 @@ async function checkDuplicateReference(
     return { exists: false }
   } catch (error) {
     console.error('Error checking for duplicate:', error)
-    return { exists: false } // Proceed with creation if check fails
+    return { exists: false }
   }
 }
 
@@ -64,9 +64,16 @@ export async function POST(request: NextRequest) {
     const notionApiKey = process.env.NOTION_API_KEY
     const databaseId = process.env.NOTION_DATABASE_ID
 
-    if (!notionApiKey || !databaseId) {
+    if (!notionApiKey) {
       return NextResponse.json(
-        { success: false, error: 'Notion credentials not configured. Please add NOTION_API_KEY and NOTION_DATABASE_ID.' },
+        { success: false, error: 'Notion API key not configured. Please add NOTION_API_KEY in Settings > Vars.' },
+        { status: 500 }
+      )
+    }
+
+    if (!databaseId) {
+      return NextResponse.json(
+        { success: false, error: 'Notion database ID not configured. Please add NOTION_DATABASE_ID in Settings > Vars.' },
         { status: 500 }
       )
     }
@@ -81,7 +88,7 @@ export async function POST(request: NextRequest) {
           isDuplicate: true,
           error: `This transaction (${reference}) is already registered in your database.`,
           existingPageUrl: duplicateCheck.pageUrl,
-        }, { status: 409 }) // 409 Conflict
+        }, { status: 409 })
       }
     }
 
@@ -143,17 +150,13 @@ export async function POST(request: NextRequest) {
     // Add transaction date if provided
     if (transactionDate) {
       let dateStr = transactionDate
-      // Parse date from "25-04-2026 07:16:13" format to "2026-04-25"
       if (transactionDate.includes('-') && transactionDate.includes(':')) {
         const parts = transactionDate.split(' ')[0].split('-')
         if (parts.length === 3 && parts[0].length === 2) {
           dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`
         }
       }
-      
-      properties['Transaction Date'] = {
-        date: { start: dateStr }
-      }
+      properties['Transaction Date'] = { date: { start: dateStr } }
     }
 
     // Create the page in Notion
@@ -173,14 +176,22 @@ export async function POST(request: NextRequest) {
     const result = await response.json()
 
     if (!response.ok) {
-      console.error('Notion API error:', result)
+      // Provide helpful error message
+      if (result.code === 'object_not_found') {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Database not found. Make sure your Notion database is shared with your integration. Go to your database in Notion, click Share, and add your integration.' 
+          },
+          { status: 404 }
+        )
+      }
       return NextResponse.json(
         { success: false, error: result.message || 'Failed to create Notion page' },
         { status: response.status }
       )
     }
 
-    // Extract the page URL
     const pageUrl = result.url || `https://notion.so/${result.id?.replace(/-/g, '')}`
 
     return NextResponse.json({
