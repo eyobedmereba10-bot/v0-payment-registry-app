@@ -15,20 +15,14 @@ import {
   Calendar,
   CreditCard,
   FileText,
-  Building2
+  Building2,
+  Hash,
+  Clock
 } from 'lucide-react'
-import type { VerificationResponse } from '@/lib/types'
-
-interface AIAnalysisExtended {
-  confidence: number
-  riskLevel: 'low' | 'medium' | 'high'
-  summary: string
-  flags: string[]
-  recommendation?: string
-}
+import type { VerificationResponse, AIAnalysis } from '@/lib/types'
 
 interface VerificationResultProps {
-  data: VerificationResponse & { aiAnalysis?: AIAnalysisExtended }
+  data: VerificationResponse & { aiAnalysis?: AIAnalysis }
 }
 
 export function VerificationResult({ data }: VerificationResultProps) {
@@ -55,8 +49,8 @@ export function VerificationResult({ data }: VerificationResultProps) {
 
   const getConfidenceColor = (confidence?: number) => {
     if (!confidence) return 'text-muted-foreground'
-    if (confidence >= 80) return 'text-green-600'
-    if (confidence >= 50) return 'text-yellow-600'
+    if (confidence >= 70) return 'text-green-600'
+    if (confidence >= 40) return 'text-yellow-600'
     return 'text-red-600'
   }
 
@@ -108,176 +102,195 @@ export function VerificationResult({ data }: VerificationResultProps) {
               ) : (
                 <XCircle className="h-5 w-5 text-red-600" />
               )}
-              Verification Status
+              Bank Verification Status
             </CardTitle>
-            <Badge variant={data.success ? 'default' : 'destructive'}>
+            <Badge variant={data.success ? 'default' : 'destructive'} className="text-sm px-3 py-1">
               {data.success ? 'VERIFIED' : 'NOT FOUND'}
             </Badge>
           </div>
           <CardDescription>
             {data.success
-              ? 'Transaction was found and confirmed in the bank records'
-              : data.error || data.message || 'Transaction could not be verified in the bank system'}
+              ? 'Transaction was found and confirmed in the official bank records'
+              : data.error || data.message || 'Transaction could not be found in the bank system - this may indicate a fraudulent receipt'}
           </CardDescription>
         </CardHeader>
       </Card>
 
       {/* Payment Information - Main Section */}
-      {data.success && (
-        <Card className="border-2 border-primary/20">
-          <CardHeader className="pb-2 bg-primary/5">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Banknote className="h-5 w-5 text-primary" />
-              Payment Information
-            </CardTitle>
-            <CardDescription>
-              Reference: <span className="font-mono font-medium text-foreground">{data.transactionReference || data.transferReference || '-'}</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {/* Payment Flow: Sender -> Receiver */}
-            <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center mb-6 p-4 bg-muted/30 rounded-lg">
-              {/* Sender */}
-              <div className="flex flex-col items-center text-center gap-2">
-                <div className="h-14 w-14 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <User className="h-7 w-7 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Sender</p>
-                  <p className="font-semibold text-lg">{data.senderName || 'Unknown'}</p>
-                  {data.senderAccountNumber && (
-                    <p className="text-sm font-mono text-muted-foreground">{data.senderAccountNumber}</p>
-                  )}
-                </div>
+      <Card className="border-2 border-primary/20">
+        <CardHeader className="pb-2 bg-primary/5">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Banknote className="h-5 w-5 text-primary" />
+            Payment Details
+          </CardTitle>
+          <CardDescription className="flex items-center gap-2">
+            <Hash className="h-4 w-4" />
+            Reference: <span className="font-mono font-medium text-foreground">{data.transactionReference || data.transferReference || 'Not provided'}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {/* Payment Flow: Sender -> Receiver */}
+          <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center mb-6 p-4 bg-muted/30 rounded-lg">
+            {/* Sender */}
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="h-14 w-14 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                <User className="h-7 w-7 text-blue-600 dark:text-blue-400" />
               </div>
-
-              {/* Arrow with Amount */}
-              <div className="flex flex-col items-center gap-1">
-                <div className="flex items-center gap-2 px-4 py-2 bg-primary rounded-full text-primary-foreground">
-                  <span className="font-bold text-lg">{formatCurrency(data.transactionAmount)}</span>
-                </div>
-                <ArrowRight className="h-6 w-6 text-primary" />
-              </div>
-
-              {/* Receiver */}
-              <div className="flex flex-col items-center text-center gap-2">
-                <div className="h-14 w-14 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                  <User className="h-7 w-7 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Receiver</p>
-                  <p className="font-semibold text-lg">{data.receiverName || 'Unknown'}</p>
-                  {data.receiverAccountNumber && (
-                    <p className="text-sm font-mono text-muted-foreground">{data.receiverAccountNumber}</p>
-                  )}
-                </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">From (Sender)</p>
+                <p className="font-semibold text-lg">{data.senderName || 'Not Available'}</p>
+                {data.senderAccountNumber && (
+                  <p className="text-sm font-mono text-muted-foreground">{data.senderAccountNumber}</p>
+                )}
               </div>
             </div>
 
-            {/* Transaction Details Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Amount Details */}
-              <div className="p-3 rounded-lg bg-muted/50 col-span-2">
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Amount</span>
-                    <span className="font-bold text-xl text-primary">{formatCurrency(data.transactionAmount)}</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Service Fee</span>
-                    <span className="font-medium">{formatCurrency(data.serviceCharge)}</span>
-                  </div>
-                  {data.exciseTax !== undefined && data.exciseTax > 0 && (
-                    <div className="flex flex-col">
-                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Excise Tax</span>
-                      <span className="font-medium">{formatCurrency(data.exciseTax)}</span>
-                    </div>
-                  )}
-                  {data.vat !== undefined && data.vat > 0 && (
-                    <div className="flex flex-col">
-                      <span className="text-xs text-muted-foreground uppercase tracking-wide">VAT</span>
-                      <span className="font-medium">{formatCurrency(data.vat)}</span>
-                    </div>
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Total</span>
-                    <span className="font-bold text-xl">{formatCurrency(data.total)}</span>
-                  </div>
-                </div>
+            {/* Arrow with Amount */}
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2 px-4 py-2 bg-primary rounded-full text-primary-foreground">
+                <span className="font-bold text-lg">{formatCurrency(data.transactionAmount)}</span>
               </div>
+              <ArrowRight className="h-6 w-6 text-primary" />
+            </div>
 
-              {/* Transaction Channel */}
+            {/* Receiver */}
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="h-14 w-14 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                <User className="h-7 w-7 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">To (Receiver)</p>
+                <p className="font-semibold text-lg">{data.receiverName || 'Not Available'}</p>
+                {data.receiverAccountNumber && (
+                  <p className="text-sm font-mono text-muted-foreground">{data.receiverAccountNumber}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Amount Breakdown */}
+          <div className="p-4 rounded-lg bg-muted/50 mb-4">
+            <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wide">Financial Breakdown</h4>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">Amount</span>
+                <span className="font-bold text-xl text-primary">{formatCurrency(data.transactionAmount)}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">Service Fee</span>
+                <span className="font-medium">{formatCurrency(data.serviceCharge || 0)}</span>
+              </div>
+              {(data.exciseTax !== undefined && data.exciseTax > 0) && (
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">Excise Tax</span>
+                  <span className="font-medium">{formatCurrency(data.exciseTax)}</span>
+                </div>
+              )}
+              {(data.vat !== undefined && data.vat > 0) && (
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">VAT</span>
+                  <span className="font-medium">{formatCurrency(data.vat)}</span>
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">Total Paid</span>
+                <span className="font-bold text-xl">{formatCurrency(data.total || data.transactionAmount)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Transaction Metadata Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Transaction Channel */}
+            {data.transactionChannel && (
               <div className="flex items-start gap-3 p-3 rounded-lg border">
                 <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex flex-col">
                   <span className="text-xs text-muted-foreground uppercase tracking-wide">Channel</span>
-                  <span className="font-medium">{data.transactionChannel || '-'}</span>
+                  <span className="font-medium">{data.transactionChannel}</span>
                 </div>
               </div>
+            )}
 
-              {/* Service Type */}
+            {/* Service Type */}
+            {data.serviceType && (
               <div className="flex items-start gap-3 p-3 rounded-lg border">
                 <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div className="flex flex-col">
                   <span className="text-xs text-muted-foreground uppercase tracking-wide">Service Type</span>
-                  <span className="font-medium">{data.serviceType || '-'}</span>
+                  <span className="font-medium">{data.serviceType}</span>
                 </div>
               </div>
+            )}
 
-              {/* Transaction Date */}
-              {data.transactionDate && (
-                <div className="flex items-start gap-3 p-3 rounded-lg border">
-                  <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Date</span>
-                    <span className="font-medium">{data.transactionDate}</span>
-                  </div>
+            {/* Transaction Date */}
+            {data.transactionDate && (
+              <div className="flex items-start gap-3 p-3 rounded-lg border">
+                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Date & Time</span>
+                  <span className="font-medium">{data.transactionDate}</span>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Narrative/Description */}
-              {data.narrative && (
-                <div className="flex items-start gap-3 p-3 rounded-lg border col-span-2">
-                  <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex flex-col flex-1">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Description / Narrative</span>
-                    <span className="font-medium">{data.narrative}</span>
-                  </div>
+            {/* Transfer Reference */}
+            {data.transferReference && data.transferReference !== data.transactionReference && (
+              <div className="flex items-start gap-3 p-3 rounded-lg border">
+                <Hash className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Transfer Ref</span>
+                  <span className="font-medium font-mono text-sm">{data.transferReference}</span>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </div>
+            )}
+
+            {/* Narrative/Description */}
+            {data.narrative && (
+              <div className="flex items-start gap-3 p-3 rounded-lg border col-span-2">
+                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex flex-col flex-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Description / Reason</span>
+                  <span className="font-medium">{data.narrative}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* AI Analysis */}
       {data.aiAnalysis && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">AI Fraud Analysis</CardTitle>
-              <Badge variant={getRiskBadgeVariant(data.aiAnalysis.riskLevel)}>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                AI Fraud Analysis
+              </CardTitle>
+              <Badge variant={getRiskBadgeVariant(data.aiAnalysis.riskLevel)} className="text-sm px-3 py-1">
                 {data.aiAnalysis.riskLevel?.toUpperCase()} RISK
               </Badge>
             </div>
             <CardDescription>
-              Powered by Groq AI (Llama 3.3 70B)
+              Automated fraud detection powered by Groq AI
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col">
-                <span className="text-sm text-muted-foreground">Confidence Score</span>
-                <span className={`text-2xl font-bold ${getConfidenceColor(data.aiAnalysis.confidence)}`}>
+            {/* Confidence Score */}
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
+              <div className="flex flex-col min-w-[100px]">
+                <span className="text-sm text-muted-foreground">Confidence</span>
+                <span className={`text-3xl font-bold ${getConfidenceColor(data.aiAnalysis.confidence)}`}>
                   {data.aiAnalysis.confidence}%
                 </span>
               </div>
-              <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+              <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${
-                    data.aiAnalysis.confidence >= 80
+                    data.aiAnalysis.confidence >= 70
                       ? 'bg-green-500'
-                      : data.aiAnalysis.confidence >= 50
+                      : data.aiAnalysis.confidence >= 40
                       ? 'bg-yellow-500'
                       : 'bg-red-500'
                   }`}
@@ -286,14 +299,51 @@ export function VerificationResult({ data }: VerificationResultProps) {
               </div>
             </div>
 
-            <div className="rounded-lg bg-muted/50 p-3">
-              <h4 className="text-sm font-medium mb-1">Summary</h4>
-              <p className="text-sm text-foreground">{data.aiAnalysis.summary}</p>
+            {/* AI Summary */}
+            <div className="rounded-lg bg-muted/50 p-4">
+              <h4 className="text-sm font-medium mb-2 uppercase tracking-wide text-muted-foreground">AI Summary</h4>
+              <p className="text-foreground leading-relaxed">{data.aiAnalysis.summary}</p>
             </div>
 
+            {/* Verified Details from AI */}
+            {data.aiAnalysis.transactionDetails && (
+              <div className="rounded-lg border p-4">
+                <h4 className="text-sm font-medium mb-3 uppercase tracking-wide text-muted-foreground">Verified Transaction Details</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Sender</span>
+                    <span className="font-medium">{data.aiAnalysis.transactionDetails.verifiedSender}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Receiver</span>
+                    <span className="font-medium">{data.aiAnalysis.transactionDetails.verifiedReceiver}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-medium">{data.aiAnalysis.transactionDetails.verifiedAmount}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium">{data.aiAnalysis.transactionDetails.verifiedDate}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Reference</span>
+                    <span className="font-medium font-mono">{data.aiAnalysis.transactionDetails.verifiedReference}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className={`font-medium ${data.success ? 'text-green-600' : 'text-red-600'}`}>
+                      {data.aiAnalysis.transactionDetails.verificationStatus}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Observations */}
             {data.aiAnalysis.flags && data.aiAnalysis.flags.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Observations</h4>
+                <h4 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">Detailed Observations</h4>
                 <ul className="flex flex-col gap-2">
                   {data.aiAnalysis.flags.map((flag, index) => {
                     const isPositive = flag.toLowerCase().includes('confirmed') || 
@@ -301,7 +351,8 @@ export function VerificationResult({ data }: VerificationResultProps) {
                                        flag.toLowerCase().includes('match') ||
                                        flag.toLowerCase().includes('found') ||
                                        flag.toLowerCase().includes('valid') ||
-                                       flag.toLowerCase().includes('legitimate')
+                                       flag.toLowerCase().includes('legitimate') ||
+                                       flag.toLowerCase().includes('success')
                     const isNegative = flag.toLowerCase().includes('not found') ||
                                        flag.toLowerCase().includes('suspicious') ||
                                        flag.toLowerCase().includes('mismatch') ||
@@ -309,9 +360,11 @@ export function VerificationResult({ data }: VerificationResultProps) {
                                        flag.toLowerCase().includes('failed') ||
                                        flag.toLowerCase().includes('invalid') ||
                                        flag.toLowerCase().includes('fraud') ||
-                                       flag.toLowerCase().includes('fake')
+                                       flag.toLowerCase().includes('fake') ||
+                                       flag.toLowerCase().includes('not provided') ||
+                                       flag.toLowerCase().includes('unavailable')
                     return (
-                      <li key={index} className="flex items-start gap-2 text-sm">
+                      <li key={index} className="flex items-start gap-2 text-sm p-2 rounded-md bg-muted/30">
                         {isPositive ? (
                           <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                         ) : isNegative ? (

@@ -52,6 +52,14 @@ export interface AIAnalysis {
   summary: string
   flags: string[]
   recommendation?: string
+  transactionDetails?: {
+    verifiedSender: string
+    verifiedReceiver: string
+    verifiedAmount: string
+    verifiedDate: string
+    verifiedReference: string
+    verificationStatus: string
+  }
 }
 
 export interface ExtractedData {
