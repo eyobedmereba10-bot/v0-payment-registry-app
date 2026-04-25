@@ -47,6 +47,22 @@ export interface AIAnalysis {
   flags: string[]
 }
 
+export interface ExtractedData {
+  transactionReference: string
+  amount?: string
+  senderName?: string
+  senderAccount?: string
+  receiverName?: string
+  receiverAccount?: string
+  date?: string
+  time?: string
+  paymentMethod?: PaymentProvider | 'unknown'
+  bankName?: string
+  transactionType?: string
+  status?: string
+  additionalNotes?: string
+}
+
 export const PROVIDERS: { value: PaymentProvider; label: string; description: string }[] = [
   { value: 'universal', label: 'Auto-Detect', description: 'Automatically detects the provider' },
   { value: 'cbe', label: 'CBE', description: 'Commercial Bank of Ethiopia' },
