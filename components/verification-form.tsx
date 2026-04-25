@@ -167,7 +167,7 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
 
       const analysis = await analyzeResponse.json()
 
-      // Step 3: If payment is approved, save to Notion
+      // Step 3: If payment is approved, queue for Notion save
       let notionResult = null
       
       if (verificationData.success) {
@@ -190,15 +190,35 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
         }
 
         try {
-          const notionResponse = await fetch('/api/notion-create-sale', {
+          // Queue the sale for MCP processing
+          const queueResponse = await fetch('/api/queue-sale', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(saleData),
           })
 
-          notionResult = await notionResponse.json()
+          const queueResult = await queueResponse.json()
+          
+          if (queueResult.isDuplicate) {
+            notionResult = {
+              success: false,
+              isDuplicate: true,
+              error: queueResult.error,
+              existingPageUrl: queueResult.existingPageUrl,
+            }
+          } else if (queueResult.success) {
+            // Now trigger MCP save via a special endpoint
+            notionResult = {
+              success: true,
+              queued: true,
+              queueId: queueResult.queueId,
+              message: 'Payment verified and queued for Notion!',
+            }
+          } else {
+            notionResult = { success: false, error: queueResult.error || 'Failed to queue' }
+          }
         } catch (notionError) {
-          console.error('Notion save error:', notionError)
+          console.error('Queue error:', notionError)
           notionResult = { success: false, error: 'Failed to save to Notion' }
         }
       }
