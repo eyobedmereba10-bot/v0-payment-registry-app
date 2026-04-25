@@ -19,6 +19,8 @@ export default function VerifyPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   const handleVerificationComplete = (data: VerificationResponse & { aiAnalysis?: AIAnalysis }) => {
+    console.log('[v0] Verification complete, data:', data)
+    console.log('[v0] data.success:', data.success)
     const transactionWithTimestamp = {
       ...data,
       timestamp: new Date().toISOString(),
@@ -34,10 +36,12 @@ export default function VerifyPage() {
     isDuplicate?: boolean;
     existingPageUrl?: string;
   }> => {
+    console.log('[v0] handleRegisterToNotion called')
     if (!currentResult) {
       return { success: false, error: 'No transaction to register' }
     }
 
+    console.log('[v0] Current result:', currentResult)
     try {
       // Prepare sale data for Notion
       const saleData = {
@@ -64,6 +68,7 @@ export default function VerifyPage() {
       })
 
       const result = await response.json()
+      console.log('[v0] Notion API response:', result)
 
       if (result.success) {
         return { 

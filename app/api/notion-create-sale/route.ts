@@ -64,7 +64,12 @@ export async function POST(request: NextRequest) {
     const notionApiKey = process.env.NOTION_API_KEY
     const databaseId = process.env.NOTION_DATABASE_ID
 
+    console.log('[v0] Notion API Key exists:', !!notionApiKey)
+    console.log('[v0] Database ID exists:', !!databaseId)
+    console.log('[v0] Database ID value:', databaseId)
+
     if (!notionApiKey || !databaseId) {
+      console.log('[v0] Missing Notion credentials')
       return NextResponse.json(
         { success: false, error: 'Notion credentials not configured. Please add NOTION_API_KEY and NOTION_DATABASE_ID.' },
         { status: 500 }
@@ -156,6 +161,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('[v0] Creating page with properties:', JSON.stringify(properties, null, 2))
+    
     // Create the page in Notion
     const response = await fetch(`${NOTION_API_URL}/pages`, {
       method: 'POST',
@@ -171,9 +178,12 @@ export async function POST(request: NextRequest) {
     })
 
     const result = await response.json()
+    
+    console.log('[v0] Notion API response status:', response.status)
+    console.log('[v0] Notion API response:', JSON.stringify(result, null, 2))
 
     if (!response.ok) {
-      console.error('Notion API error:', result)
+      console.error('[v0] Notion API error:', result)
       return NextResponse.json(
         { success: false, error: result.message || 'Failed to create Notion page' },
         { status: response.status }

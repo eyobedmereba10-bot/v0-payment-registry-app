@@ -70,11 +70,22 @@ export async function POST(request: NextRequest) {
       return isNaN(num) ? 0 : num
     }
 
+    // Determine success - consider it successful if we have transaction data
+    // Some APIs return success: true, others don't have a success field but return data
+    const hasTransactionData = Boolean(
+      apiData.transactionReference || apiData.receiptNo || apiData.reference ||
+      apiData.senderName || apiData.payerName ||
+      apiData.transactionAmount || apiData.settledAmount || apiData.amount
+    )
+    const isSuccess = rawData.success === true || rawData.success === 'true' || hasTransactionData
+    
+    console.log('[v0] API raw success:', rawData.success, 'hasTransactionData:', hasTransactionData, 'isSuccess:', isSuccess)
+
     // Map the API response - handle different field names from different providers
     // Telebirr uses: payerName, payerTelebirrNo, creditedPartyName, creditedPartyAccountNo, receiptNo, settledAmount, totalPaidAmount
     // Dashen uses: senderName, senderAccountNumber, transactionAmount, transactionReference, etc.
     const verificationResponse: VerificationResponse = {
-      success: rawData.success === true,
+      success: isSuccess,
       // Sender info - try multiple field names
       senderName: apiData.senderName || apiData.payerName || apiData.fromName || null,
       senderAccountNumber: apiData.senderAccountNumber || apiData.payerTelebirrNo || apiData.payerAccountNo || apiData.fromAccount || null,

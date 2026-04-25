@@ -409,19 +409,24 @@ export function VerificationResult({ data, onRegisterToNotion }: VerificationRes
               
               {registrationResult ? (
                 registrationResult.success ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle2 className="h-5 w-5" />
-                      <span className="font-medium">Sale registered successfully!</span>
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold text-green-700">Saved to Notion!</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Your sale has been recorded in your database
+                      </p>
                     </div>
                     {registrationResult.pageUrl && (
                       <a 
                         href={registrationResult.pageUrl} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-sm text-primary hover:underline"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                       >
-                        Open in Notion <ExternalLink className="h-3 w-3" />
+                        View in Notion <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     )}
                   </div>
