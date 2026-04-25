@@ -9,10 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PROVIDERS, type PaymentProvider, type VerificationResponse, type ExtractedData } from '@/lib/types'
-import { Upload, ImageIcon, X, CheckCircle2 } from 'lucide-react'
+import { Upload, ImageIcon, X, CheckCircle2, AlertTriangle, XCircle, BookOpen } from 'lucide-react'
 
 interface VerificationFormProps {
-  onVerificationComplete: (data: VerificationResponse) => void
+  onVerificationComplete: (data: VerificationResponse & { 
+    notionResult?: { 
+      success: boolean; 
+      pageUrl?: string; 
+      error?: string;
+      isDuplicate?: boolean;
+    } 
+  }) => void
   onAnalyzing: (analyzing: boolean) => void
 }
 
@@ -22,6 +29,7 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
   const [suffix, setSuffix] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [currentStep, setCurrentStep] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   
   // Screenshot upload state
@@ -122,15 +130,17 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await verifyTransaction()
+    await verifyAndSave()
   }
 
-  const verifyTransaction = async () => {
+  const verifyAndSave = async () => {
     setError(null)
     setIsLoading(true)
     onAnalyzing(true)
+    setCurrentStep('Verifying payment...')
 
     try {
+      // Step 1: Verify the transaction
       const verifyResponse = await fetch('/api/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,7 +154,8 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
 
       const verificationData: VerificationResponse = await verifyResponse.json()
 
-      // Always run AI analysis - even if verification fails, we want AI to explain why
+      // Step 2: Run AI analysis
+      setCurrentStep('AI analyzing transaction...')
       const analyzeResponse = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,16 +167,64 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
 
       const analysis = await analyzeResponse.json()
 
+      // Step 3: If payment is approved, save to Notion
+      let notionResult = null
+      
+      if (verificationData.success) {
+        setCurrentStep('Saving to Notion...')
+        
+        const saleData = {
+          transactionTitle: `${verificationData.senderName || 'Unknown'} - ${verificationData.transactionReference || reference}`,
+          reference: verificationData.transactionReference || reference,
+          amount: verificationData.transactionAmount || verificationData.total || 0,
+          senderName: verificationData.senderName || '',
+          senderAccount: verificationData.senderAccountNumber || '',
+          receiverName: verificationData.receiverName || '',
+          receiverAccount: verificationData.receiverAccountNumber || '',
+          paymentMethod: verificationData.transactionChannel || provider || 'Unknown',
+          status: 'Verified',
+          riskLevel: analysis?.riskLevel === 'high' ? 'High' : 
+                     analysis?.riskLevel === 'medium' ? 'Medium' : 'Low',
+          transactionDate: verificationData.transactionDate || null,
+          notes: verificationData.narrative || analysis?.summary || '',
+        }
+
+        try {
+          const notionResponse = await fetch('/api/notion-create-sale', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(saleData),
+          })
+
+          notionResult = await notionResponse.json()
+        } catch (notionError) {
+          console.error('Notion save error:', notionError)
+          notionResult = { success: false, error: 'Failed to save to Notion' }
+        }
+      }
+
+      // Complete - send all results
       onVerificationComplete({
         ...verificationData,
         aiAnalysis: analysis,
         extractedData: extractedData || undefined,
-      } as VerificationResponse & { aiAnalysis: unknown; extractedData?: ExtractedData })
+        notionResult: notionResult,
+      } as VerificationResponse & { aiAnalysis: unknown; extractedData?: ExtractedData; notionResult?: unknown })
+
+      // Reset form on success
+      if (verificationData.success && notionResult?.success) {
+        setReference('')
+        setSuffix('')
+        setPhoneNumber('')
+        clearScreenshot()
+      }
+
     } catch (err) {
       setError('Failed to verify transaction. Please try again.')
       console.error(err)
     } finally {
       setIsLoading(false)
+      setCurrentStep('')
       onAnalyzing(false)
     }
   }
@@ -173,9 +232,9 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-xl">Verify Payment</CardTitle>
+        <CardTitle className="text-xl">Verify & Register Sale</CardTitle>
         <CardDescription>
-          Upload a screenshot or enter transaction details manually
+          Upload a screenshot or enter reference number. Approved payments are automatically saved to Notion.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -226,7 +285,7 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
                     <ImageIcon className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="font-medium">Drop your screenshot here</p>
+                    <p className="font-medium">Drop your payment screenshot here</p>
                     <p className="text-sm text-muted-foreground">or click to browse</p>
                   </div>
                 </div>
@@ -295,36 +354,35 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
                       <span className="font-medium">{extractedData.receiverName}</span>
                     </div>
                   )}
-                  {extractedData.date && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Date:</span>
-                      <span className="font-medium">{extractedData.date} {extractedData.time || ''}</span>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
 
-            {/* Verify Button */}
+            {/* Verify & Save Button */}
             {extractedData && (
               <Button
                 type="button"
-                onClick={verifyTransaction}
+                onClick={verifyAndSave}
                 disabled={isLoading || !reference}
+                className="gap-2"
               >
                 {isLoading ? (
                   <>
-                    <Spinner className="mr-2 h-4 w-4" />
-                    Verifying...
+                    <Spinner className="h-4 w-4" />
+                    {currentStep || 'Processing...'}
                   </>
                 ) : (
-                  'Verify Transaction'
+                  <>
+                    <BookOpen className="h-4 w-4" />
+                    Verify & Save to Notion
+                  </>
                 )}
               </Button>
             )}
 
             {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive flex items-center gap-2">
+                <XCircle className="h-4 w-4 flex-shrink-0" />
                 {error}
               </div>
             )}
@@ -384,26 +442,27 @@ export function VerificationForm({ onVerificationComplete, onAnalyzing }: Verifi
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Phone number associated with the transaction
-                  </p>
                 </div>
               )}
 
               {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive flex items-center gap-2">
+                  <XCircle className="h-4 w-4 flex-shrink-0" />
                   {error}
                 </div>
               )}
 
-              <Button type="submit" disabled={isLoading || !reference} className="mt-2">
+              <Button type="submit" disabled={isLoading || !reference} className="mt-2 gap-2">
                 {isLoading ? (
                   <>
-                    <Spinner className="mr-2 h-4 w-4" />
-                    Verifying...
+                    <Spinner className="h-4 w-4" />
+                    {currentStep || 'Processing...'}
                   </>
                 ) : (
-                  'Verify Transaction'
+                  <>
+                    <BookOpen className="h-4 w-4" />
+                    Verify & Save to Notion
+                  </>
                 )}
               </Button>
             </form>
