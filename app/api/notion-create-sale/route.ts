@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const NOTION_API_URL = 'https://api.notion.com/v1'
+// Correct Database ID from MCP: 46dff2e8-4988-4136-a1a5-13009bc04fdc
+const NOTION_DATABASE_ID = '46dff2e8-4988-4136-a1a5-13009bc04fdc'
 
 // Check if a reference number already exists in the database
 async function checkDuplicateReference(
@@ -62,16 +64,12 @@ export async function POST(request: NextRequest) {
     } = await request.json()
 
     const notionApiKey = process.env.NOTION_API_KEY
-    const databaseId = process.env.NOTION_DATABASE_ID
+    // Use the constant database ID defined at the top
+    const databaseId = NOTION_DATABASE_ID
 
-    console.log('[v0] Notion API Key exists:', !!notionApiKey)
-    console.log('[v0] Database ID exists:', !!databaseId)
-    console.log('[v0] Database ID value:', databaseId)
-
-    if (!notionApiKey || !databaseId) {
-      console.log('[v0] Missing Notion credentials')
+    if (!notionApiKey) {
       return NextResponse.json(
-        { success: false, error: 'Notion credentials not configured. Please add NOTION_API_KEY and NOTION_DATABASE_ID.' },
+        { success: false, error: 'Notion API key not configured. Please add NOTION_API_KEY.' },
         { status: 500 }
       )
     }
@@ -161,8 +159,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('[v0] Creating page with properties:', JSON.stringify(properties, null, 2))
-    
     // Create the page in Notion
     const response = await fetch(`${NOTION_API_URL}/pages`, {
       method: 'POST',
@@ -178,12 +174,9 @@ export async function POST(request: NextRequest) {
     })
 
     const result = await response.json()
-    
-    console.log('[v0] Notion API response status:', response.status)
-    console.log('[v0] Notion API response:', JSON.stringify(result, null, 2))
 
     if (!response.ok) {
-      console.error('[v0] Notion API error:', result)
+      console.error('Notion API error:', result)
       return NextResponse.json(
         { success: false, error: result.message || 'Failed to create Notion page' },
         { status: response.status }
