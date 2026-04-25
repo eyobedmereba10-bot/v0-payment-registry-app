@@ -71,8 +71,8 @@ function parseExtractedData(text: string): ExtractedData {
           : undefined,
       };
     }
-  } catch {
-    // If JSON parsing fails, return empty data
+  } catch (e) {
+    console.error("[v0] JSON parse error:", e);
   }
 
   return {
@@ -103,18 +103,12 @@ export async function POST(request: NextRequest) {
     // Convert file to base64
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
-    const mimeType = file.type || "image/png";
+    const mimeType = file.type || "image/jpeg";
     const dataUrl = `data:${mimeType};base64,${base64}`;
 
-    const { text } = await generateText({
-      model: groq("llama-3.2-90b-vision-preview"),
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `You are an expert at reading Ethiopian payment screenshots from CBE, Telebirr, Dashen Bank, Bank of Abyssinia, CBE Birr, and M-Pesa.
+    console.log("[v0] Processing image, size:", bytes.byteLength, "bytes, type:", mimeType);
+
+    const promptText = `You are an expert at reading Ethiopian payment screenshots from CBE, Telebirr, Dashen Bank, Bank of Abyssinia, CBE Birr, and M-Pesa.
 
 Carefully analyze this payment screenshot and extract ALL visible transaction details.
 
@@ -145,7 +139,18 @@ Respond with ONLY this JSON format, no other text:
   "transactionType": "<transfer | payment | deposit | withdrawal>",
   "status": "<success | pending | failed>",
   "additionalNotes": "<any other details>"
-}`,
+}`;
+
+    // Use the correct format for Groq vision - image_url type with url property
+    const { text } = await generateText({
+      model: groq("llama-3.2-90b-vision-preview"),
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: promptText,
             },
             {
               type: "image",
@@ -154,7 +159,7 @@ Respond with ONLY this JSON format, no other text:
           ],
         },
       ],
-      maxTokens: 1000,
+      maxTokens: 1500,
     });
 
     console.log("[v0] Groq vision response:", text);
@@ -177,6 +182,18 @@ Respond with ONLY this JSON format, no other text:
   } catch (error) {
     console.error("[v0] Extraction error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    // Check for specific Groq API errors
+    if (errorMessage.includes("model") || errorMessage.includes("not found")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Vision model not available. Please try again later.",
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
       {
         success: false,

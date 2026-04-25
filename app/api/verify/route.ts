@@ -55,9 +55,31 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(requestBody),
     })
 
-    const data: VerificationResponse = await response.json()
+    const data = await response.json()
 
-    return NextResponse.json(data)
+    // Map the API response to our expected format
+    const verificationResponse: VerificationResponse = {
+      success: data.success ?? false,
+      senderName: data.senderName,
+      senderAccountNumber: data.senderAccountNumber,
+      receiverName: data.receiverName,
+      receiverAccountNumber: data.receiverAccountNumber,
+      transactionChannel: data.transactionChannel,
+      serviceType: data.serviceType,
+      narrative: data.narrative,
+      transactionReference: data.transactionReference,
+      transferReference: data.transferReference,
+      transactionAmount: data.transactionAmount,
+      serviceCharge: data.serviceCharge,
+      exciseTax: data.exciseTax,
+      vat: data.vat,
+      total: data.total,
+      transactionDate: data.transactionDate,
+      error: data.error,
+      message: data.message,
+    }
+
+    return NextResponse.json(verificationResponse)
   } catch (error) {
     console.error('Verification error:', error)
     return NextResponse.json(
